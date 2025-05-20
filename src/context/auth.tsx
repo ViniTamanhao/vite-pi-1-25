@@ -23,6 +23,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [token, setToken] = useState<string | null>(null);
   const navigate = useNavigate();
 
+  // Load token from localStorage on app load
   useEffect(() => {
     const storedToken = localStorage.getItem("tokenPSICOUFRJ");
     const expiration = localStorage.getItem("tokenExpirationPSICOUFRJ");
@@ -32,11 +33,26 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       if (now < parseInt(expiration)) {
         setToken(storedToken);
       } else {
-        localStorage.removeItem("tokenPSICOUFRJ");
-        localStorage.removeItem("tokenExpirationPSICOUFRJ");
+        logout();
       }
     }
   }, []);
+
+  // Auto-logout when token expires
+  useEffect(() => {
+    if (!token) return;
+
+    const expiration = localStorage.getItem("tokenExpirationPSICOUFRJ");
+    if (expiration) {
+      const expTime = parseInt(expiration);
+      const now = Date.now();
+      const timeout = setTimeout(() => {
+        logout();
+      }, expTime - now);
+
+      return () => clearTimeout(timeout);
+    }
+  }, [token]);
 
   const login = async (name: string, pwd: string) => {
     try {
