@@ -9,6 +9,7 @@ import Pacientes from "./pages/Pacientes/Pacientes";
 import Alunos from "./pages/Alunos/Alunos";
 import Pareceres from "./pages/Pareceres/Pareceres";
 import Setores from "./pages/Setores/Setores";
+import CreateParecerAlunoPage from "./pages/FormularioPareceres/FormularioPareces";
 
 const AppRoutes = () => {
   const { token } = useContext(AuthContext);
@@ -26,6 +27,8 @@ const AppRoutes = () => {
       ) : (
         <Route path="/*" element={<Login />} />
       )}
+
+      <Route path="/formparecer" element={<CreateParecerAlunoPage />} />
     </Routes>
   );
 };

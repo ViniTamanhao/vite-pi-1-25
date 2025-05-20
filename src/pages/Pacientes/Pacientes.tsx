@@ -4,9 +4,18 @@ import styled from "styled-components";
 import api from "../../utils/api";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { motion, AnimatePresence } from "framer-motion"; // Added for modal animations
 
 interface Paciente {
   id: number;
+  name: string;
+  birth: string;
+  sex: string;
+  address: string;
+}
+
+// Interface for the new patient form data
+interface NewPacienteData {
   name: string;
   birth: string;
   sex: string;
@@ -49,6 +58,11 @@ const Button = styled.button`
   &:hover {
     background-color: #005bb5;
   }
+
+  &:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+  }
 `;
 
 const Table = styled.table`
@@ -72,40 +86,149 @@ const Td = styled.td`
   border-bottom: 1px solid #eee;
 `;
 
+// --- Modal Styles ---
+const ModalOverlay = styled(motion.div)`
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+`;
+
+const ModalContent = styled(motion.div)`
+  background-color: white;
+  padding: 2rem;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+`;
+
+const ModalTitle = styled.h2`
+  font-size: 1.5rem;
+  color: #333;
+  margin-bottom: 1rem;
+`;
+
+const FormGroup = styled.div`
+  margin-bottom: 1rem;
+
+  label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: #555;
+    font-weight: bold;
+  }
+
+  input,
+  select {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1rem;
+  }
+`;
+
+const ModalActions = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1rem;
+`;
+
 export default function Pacientes() {
   const [pacientes, setPacientes] = useState<Paciente[]>([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [newPacienteData, setNewPacienteData] = useState<NewPacienteData>({
+    name: "",
+    birth: "",
+    sex: "",
+    address: "",
+  });
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const fetchPacientes = async () => {
-      try {
-        const response = await api.get("/pacientes");
-        setPacientes(response.data.data);
-        console.log("Pacientes:", typeof response.data.data);
-      } catch (error) {
-        console.error("Erro ao buscar pacientes:", error);
-      }
-    };
+  const fetchPacientes = async () => {
+    try {
+      const response = await api.get("/pacientes");
+      setPacientes(response.data.data);
+    } catch (error) {
+      console.error("Erro ao buscar pacientes:", error);
+    }
+  };
 
+  useEffect(() => {
     fetchPacientes();
   }, []);
 
   const handleCreatePaciente = () => {
-    console.log("Criando novo paciente");
+    setIsModalOpen(true);
+    setNewPacienteData({ name: "", birth: "", sex: "", address: "" }); // Reset form
+  };
+
+  const handleModalClose = () => {
+    setIsModalOpen(false);
+  };
+
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = e.target;
+    setNewPacienteData((prevData) => ({
+      ...prevData,
+      [name]: value,
+    }));
+  };
+
+  const handleFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    try {
+      // Format birth date to YYYY-MM-DD if needed by your API
+      const formattedBirth = newPacienteData.birth
+        ? format(new Date(newPacienteData.birth), "yyyy-MM-dd")
+        : "";
+
+      await api.post("/pacientes", {
+        ...newPacienteData,
+        birth: formattedBirth,
+      });
+      await fetchPacientes(); // Reload data after successful creation
+      setIsModalOpen(false); // Close the modal
+    } catch (error) {
+      console.error("Erro ao criar paciente:", error);
+      alert("Erro ao criar paciente. Verifique os dados e tente novamente.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleEditPaciente = (id: number) => {
     console.log("Editando paciente com ID:", id);
+    // You can implement an edit modal similar to the create modal here
+    // or navigate to an edit page.
   };
 
   const formatDate = (dateString: string): string => {
     try {
       const date = new Date(dateString);
-      return format(date, "dd/MM/yyyy", { locale: ptBR });
+      return format(date, "yyyy-MM-dd", { locale: ptBR });
     } catch (error) {
       console.error("Erro ao formatar a data:", error);
       return "Data inválida";
     }
+  };
+
+  const modalVariants = {
+    hidden: { opacity: 0, scale: 0.8 },
+    visible: { opacity: 1, scale: 1, transition: { duration: 0.2 } },
+    exit: { opacity: 0, scale: 0.8, transition: { duration: 0.15 } },
   };
 
   return (
@@ -150,6 +273,90 @@ export default function Pacientes() {
       ) : (
         <p>Nenhum paciente cadastrado.</p>
       )}
+
+      {/* Create Paciente Modal */}
+      <AnimatePresence>
+        {isModalOpen && (
+          <ModalOverlay
+            variants={modalVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            onClick={handleModalClose} // Close when clicking outside
+          >
+            <ModalContent
+              variants={modalVariants}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside modal
+            >
+              <ModalTitle>Novo Paciente</ModalTitle>
+              <form onSubmit={handleFormSubmit}>
+                <FormGroup>
+                  <label htmlFor="name">Nome:</label>
+                  <input
+                    type="text"
+                    id="name"
+                    name="name"
+                    value={newPacienteData.name}
+                    onChange={handleInputChange}
+                    required
+                  />
+                </FormGroup>
+                <FormGroup>
+                  <label htmlFor="birth">Data de Nascimento:</label>
+                  <input
+                    type="date"
+                    id="birth"
+                    name="birth"
+                    value={newPacienteData.birth}
+                    onChange={handleInputChange}
+                    required
+                  />
+                </FormGroup>
+                <FormGroup>
+                  <label htmlFor="sex">Sexo:</label>
+                  <select
+                    id="sex"
+                    name="sex"
+                    value={newPacienteData.sex}
+                    onChange={handleInputChange}
+                    required
+                  >
+                    <option value="">Selecione</option>
+                    <option value="M">Masculino</option>
+                    <option value="F">Feminino</option>
+                  </select>
+                </FormGroup>
+                <FormGroup>
+                  <label htmlFor="address">Endereço:</label>
+                  <input
+                    type="text"
+                    id="address"
+                    name="address"
+                    value={newPacienteData.address}
+                    onChange={handleInputChange}
+                    required
+                  />
+                </FormGroup>
+                <ModalActions>
+                  <Button
+                    type="button"
+                    onClick={handleModalClose}
+                    disabled={isLoading}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button type="submit" disabled={isLoading}>
+                    {isLoading ? "Salvando..." : "Confirmar"}
+                  </Button>
+                </ModalActions>
+              </form>
+            </ModalContent>
+          </ModalOverlay>
+        )}
+      </AnimatePresence>
     </Container>
   );
 }

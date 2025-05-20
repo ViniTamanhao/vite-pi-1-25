@@ -2,9 +2,15 @@ import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import api from "../../utils/api";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface Setor {
   id: number;
+  name: string;
+}
+
+// Interface for new setor form data
+interface NewSetorData {
   name: string;
 }
 
@@ -44,6 +50,11 @@ const Button = styled.button`
   &:hover {
     background-color: #005bb5;
   }
+
+  &:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+  }
 `;
 
 const Table = styled.table`
@@ -67,8 +78,66 @@ const Td = styled.td`
   border-bottom: 1px solid #eee;
 `;
 
+// Modal Styles
+const ModalOverlay = styled(motion.div)`
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+`;
+
+const ModalContent = styled(motion.div)`
+  background-color: white;
+  padding: 2rem;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+`;
+
+const ModalTitle = styled.h2`
+  font-size: 1.5rem;
+  color: #333;
+  margin-bottom: 1rem;
+`;
+
+const FormGroup = styled.div`
+  margin-bottom: 1rem;
+
+  label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: #555;
+    font-weight: bold;
+  }
+
+  input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1rem;
+  }
+`;
+
+const ModalActions = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1rem;
+`;
+
 const SetoresPage = () => {
   const [setores, setSetores] = useState<Setor[]>([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [newSetorData, setNewSetorData] = useState<NewSetorData>({ name: "" });
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
   const fetchSetores = useCallback(async () => {
@@ -85,11 +154,45 @@ const SetoresPage = () => {
   }, [fetchSetores]);
 
   const handleCreateSetor = () => {
-    navigate("/setores/create");
+    setIsModalOpen(true);
+    setNewSetorData({ name: "" }); // Reset form
+  };
+
+  const handleModalClose = () => {
+    setIsModalOpen(false);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setNewSetorData((prevData) => ({
+      ...prevData,
+      [name]: value,
+    }));
+  };
+
+  const handleFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    try {
+      await api.post("/setores", newSetorData);
+      await fetchSetores(); // Reload data after successful creation
+      setIsModalOpen(false); // Close the modal
+    } catch (error) {
+      console.error("Erro ao criar setor:", error);
+      alert("Erro ao criar setor. Verifique os dados e tente novamente.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleEditSetor = (id: number) => {
     navigate(`/setores/edit/${id}`);
+  };
+
+  const modalVariants = {
+    hidden: { opacity: 0, scale: 0.8 },
+    visible: { opacity: 1, scale: 1, transition: { duration: 0.2 } },
+    exit: { opacity: 0, scale: 0.8, transition: { duration: 0.15 } },
   };
 
   return (
@@ -128,6 +231,54 @@ const SetoresPage = () => {
       ) : (
         <p>Nenhum setor encontrado.</p>
       )}
+
+      {/* Create Setor Modal */}
+      <AnimatePresence>
+        {isModalOpen && (
+          <ModalOverlay
+            variants={modalVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            onClick={handleModalClose} // Close when clicking outside
+          >
+            <ModalContent
+              variants={modalVariants}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside modal
+            >
+              <ModalTitle>Novo Setor</ModalTitle>
+              <form onSubmit={handleFormSubmit}>
+                <FormGroup>
+                  <label htmlFor="name">Nome:</label>
+                  <input
+                    type="text"
+                    id="name"
+                    name="name"
+                    value={newSetorData.name}
+                    onChange={handleInputChange}
+                    required
+                  />
+                </FormGroup>
+                <ModalActions>
+                  <Button
+                    type="button"
+                    onClick={handleModalClose}
+                    disabled={isLoading}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button type="submit" disabled={isLoading}>
+                    {isLoading ? "Salvando..." : "Confirmar"}
+                  </Button>
+                </ModalActions>
+              </form>
+            </ModalContent>
+          </ModalOverlay>
+        )}
+      </AnimatePresence>
     </Container>
   );
 };
