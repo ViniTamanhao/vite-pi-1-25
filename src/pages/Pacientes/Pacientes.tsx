@@ -1,10 +1,20 @@
+/**
+ * Pacientes.tsx
+ *
+ * Displays a list of patients, allows creation and editing via modal form.
+ */
+
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import api from "../../utils/api";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { motion, AnimatePresence } from "framer-motion"; // Added for modal animations
+import { motion, AnimatePresence } from "framer-motion";
+
+// ------------------
+// Types and Interfaces
+// ------------------
 
 interface Paciente {
   id: number;
@@ -14,13 +24,16 @@ interface Paciente {
   address: string;
 }
 
-// Interface for the new patient form data
 interface NewPacienteData {
   name: string;
   birth: string;
   sex: string;
   address: string;
 }
+
+// ------------------
+// Styled Components
+// ------------------
 
 const Container = styled.div`
   padding: 2rem;
@@ -86,7 +99,7 @@ const Td = styled.td`
   border-bottom: 1px solid #eee;
 `;
 
-// --- Modal Styles ---
+// Modal Styles
 const ModalOverlay = styled(motion.div)`
   position: fixed;
   inset: 0;
@@ -142,6 +155,10 @@ const ModalActions = styled.div`
   margin-top: 1rem;
 `;
 
+// ------------------
+// Component
+// ------------------
+
 export default function Pacientes() {
   const [pacientes, setPacientes] = useState<Paciente[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -152,8 +169,11 @@ export default function Pacientes() {
     address: "",
   });
   const [isLoading, setIsLoading] = useState(false);
+  // New state to hold the patient being edited
+  const [editingPaciente, setEditingPaciente] = useState<Paciente | null>(null);
   const navigate = useNavigate();
 
+  // Fetch patient list from API
   const fetchPacientes = async () => {
     try {
       const response = await api.get("/pacientes");
@@ -167,15 +187,34 @@ export default function Pacientes() {
     fetchPacientes();
   }, []);
 
+  // Open creation modal
   const handleCreatePaciente = () => {
+    setEditingPaciente(null); // Ensure we are in creation mode
+    setNewPacienteData({ name: "", birth: "", sex: "", address: "" });
     setIsModalOpen(true);
-    setNewPacienteData({ name: "", birth: "", sex: "", address: "" }); // Reset form
   };
 
+  // Open edit modal and populate form with existing data
+  const handleEditPaciente = (paciente: Paciente) => {
+    setEditingPaciente(paciente);
+    // Format the birth date to 'YYYY-MM-DD' for the input type="date"
+    const formattedBirth = paciente.birth ? format(new Date(paciente.birth), "yyyy-MM-dd") : "";
+    setNewPacienteData({
+      name: paciente.name,
+      birth: formattedBirth,
+      sex: paciente.sex,
+      address: paciente.address,
+    });
+    setIsModalOpen(true);
+  };
+
+
+  // Close modal
   const handleModalClose = () => {
     setIsModalOpen(false);
   };
 
+  // Handle input changes
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
@@ -186,50 +225,53 @@ export default function Pacientes() {
     }));
   };
 
+  // Submit new patient form or update existing patient
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      // Format birth date to YYYY-MM-DD if needed by your API
-      const formattedBirth = newPacienteData.birth
-        ? format(new Date(newPacienteData.birth), "yyyy-MM-dd")
-        : "";
-
-      await api.post("/pacientes", {
+      const payload = {
         ...newPacienteData,
-        birth: formattedBirth,
-      });
-      await fetchPacientes(); // Reload data after successful creation
-      setIsModalOpen(false); // Close the modal
+        birth: newPacienteData.birth ? format(new Date(newPacienteData.birth), "yyyy-MM-dd") : "",
+      };
+
+      if (editingPaciente) {
+        await api.put(`/pacientes/${editingPaciente.id}`, payload);
+      } else {
+        await api.post("/pacientes", payload);
+      }
+
+      await fetchPacientes();
+      setIsModalOpen(false);
     } catch (error) {
-      console.error("Erro ao criar paciente:", error);
-      alert("Erro ao criar paciente. Verifique os dados e tente novamente.");
+      console.error("Erro ao salvar paciente:", error);
+      alert("Erro ao salvar paciente. Verifique os dados e tente novamente.");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleEditPaciente = (id: number) => {
-    console.log("Editando paciente com ID:", id);
-    // You can implement an edit modal similar to the create modal here
-    // or navigate to an edit page.
-  };
-
+  // Format date to readable string
   const formatDate = (dateString: string): string => {
     try {
       const date = new Date(dateString);
-      return format(date, "yyyy-MM-dd", { locale: ptBR });
+      return format(date, "dd/MM/yyyy", { locale: ptBR }); // Changed to dd/MM/yyyy for display
     } catch (error) {
       console.error("Erro ao formatar a data:", error);
       return "Data inválida";
     }
   };
 
+  // Animation variants for modal
   const modalVariants = {
     hidden: { opacity: 0, scale: 0.8 },
     visible: { opacity: 1, scale: 1, transition: { duration: 0.2 } },
     exit: { opacity: 0, scale: 0.8, transition: { duration: 0.15 } },
   };
+
+  // ------------------
+  // Render
+  // ------------------
 
   return (
     <Container>
@@ -262,7 +304,7 @@ export default function Pacientes() {
                 <Td>{paciente.sex}</Td>
                 <Td>{paciente.address}</Td>
                 <Td style={{ textAlign: "right" }}>
-                  <Button onClick={() => handleEditPaciente(paciente.id)}>
+                  <Button onClick={() => handleEditPaciente(paciente)}>
                     Editar
                   </Button>
                 </Td>
@@ -274,7 +316,7 @@ export default function Pacientes() {
         <p>Nenhum paciente cadastrado.</p>
       )}
 
-      {/* Create Paciente Modal */}
+      {/* Create/Edit Patient Modal */}
       <AnimatePresence>
         {isModalOpen && (
           <ModalOverlay
@@ -282,16 +324,16 @@ export default function Pacientes() {
             initial="hidden"
             animate="visible"
             exit="exit"
-            onClick={handleModalClose} // Close when clicking outside
+            onClick={handleModalClose}
           >
             <ModalContent
               variants={modalVariants}
               initial="hidden"
               animate="visible"
               exit="exit"
-              onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside modal
+              onClick={(e) => e.stopPropagation()}
             >
-              <ModalTitle>Novo Paciente</ModalTitle>
+              <ModalTitle>{editingPaciente ? "Editar Paciente" : "Novo Paciente"}</ModalTitle>
               <form onSubmit={handleFormSubmit}>
                 <FormGroup>
                   <label htmlFor="name">Nome:</label>
@@ -349,7 +391,11 @@ export default function Pacientes() {
                     Cancelar
                   </Button>
                   <Button type="submit" disabled={isLoading}>
-                    {isLoading ? "Salvando..." : "Confirmar"}
+                    {isLoading
+                      ? "Salvando..."
+                      : editingPaciente
+                      ? "Atualizar"
+                      : "Confirmar"}
                   </Button>
                 </ModalActions>
               </form>

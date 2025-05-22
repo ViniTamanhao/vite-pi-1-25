@@ -138,6 +138,7 @@ const SetoresPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newSetorData, setNewSetorData] = useState<NewSetorData>({ name: "" });
   const [isLoading, setIsLoading] = useState(false);
+  const [editingSetor, setEditingSetor] = useState<Setor | null>(null); // New state for editing
   const navigate = useNavigate();
 
   const fetchSetores = useCallback(async () => {
@@ -154,8 +155,15 @@ const SetoresPage = () => {
   }, [fetchSetores]);
 
   const handleCreateSetor = () => {
-    setIsModalOpen(true);
+    setEditingSetor(null); // Clear any editing state
     setNewSetorData({ name: "" }); // Reset form
+    setIsModalOpen(true);
+  };
+
+  const handleEditSetor = (setor: Setor) => {
+    setEditingSetor(setor); // Set the setor to be edited
+    setNewSetorData({ name: setor.name }); // Populate form with existing data
+    setIsModalOpen(true);
   };
 
   const handleModalClose = () => {
@@ -174,19 +182,21 @@ const SetoresPage = () => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await api.post("/setores", newSetorData);
-      await fetchSetores(); // Reload data after successful creation
+      if (editingSetor) {
+        // If editing an existing setor
+        await api.put(`/setores/${editingSetor.id}`, newSetorData);
+      } else {
+        // If creating a new setor
+        await api.post("/setores", newSetorData);
+      }
+      await fetchSetores(); // Reload data after successful creation/update
       setIsModalOpen(false); // Close the modal
     } catch (error) {
-      console.error("Erro ao criar setor:", error);
-      alert("Erro ao criar setor. Verifique os dados e tente novamente.");
+      console.error("Erro ao salvar setor:", error);
+      alert("Erro ao salvar setor. Verifique os dados e tente novamente.");
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleEditSetor = (id: number) => {
-    navigate(`/setores/edit/${id}`);
   };
 
   const modalVariants = {
@@ -220,9 +230,7 @@ const SetoresPage = () => {
                 <Td>{setor.id}</Td>
                 <Td>{setor.name}</Td>
                 <Td style={{ textAlign: "right" }}>
-                  <Button onClick={() => handleEditSetor(setor.id)}>
-                    Editar
-                  </Button>
+                  <Button onClick={() => handleEditSetor(setor)}>Editar</Button>
                 </Td>
               </tr>
             ))}
@@ -232,7 +240,7 @@ const SetoresPage = () => {
         <p>Nenhum setor encontrado.</p>
       )}
 
-      {/* Create Setor Modal */}
+      {/* Create/Edit Setor Modal */}
       <AnimatePresence>
         {isModalOpen && (
           <ModalOverlay
@@ -249,7 +257,9 @@ const SetoresPage = () => {
               exit="exit"
               onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside modal
             >
-              <ModalTitle>Novo Setor</ModalTitle>
+              <ModalTitle>
+                {editingSetor ? "Editar Setor" : "Novo Setor"}
+              </ModalTitle>
               <form onSubmit={handleFormSubmit}>
                 <FormGroup>
                   <label htmlFor="name">Nome:</label>
@@ -271,7 +281,11 @@ const SetoresPage = () => {
                     Cancelar
                   </Button>
                   <Button type="submit" disabled={isLoading}>
-                    {isLoading ? "Salvando..." : "Confirmar"}
+                    {isLoading
+                      ? "Salvando..."
+                      : editingSetor
+                      ? "Atualizar"
+                      : "Confirmar"}
                   </Button>
                 </ModalActions>
               </form>

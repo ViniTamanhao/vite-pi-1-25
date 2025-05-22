@@ -7,7 +7,7 @@ import { ptBR } from "date-fns/locale";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface Parecer {
-  id: number;
+  id?: number;
   aluno_name: string;
   paciente_name: string;
   setor_name: string;
@@ -35,7 +35,8 @@ interface Setor {
 }
 
 // Interface for the new parecer form data
-interface NewParecerData {
+interface ParecerFormData {
+  // Renamed from NewParecerData for clarity, as it's used for both new and edit
   aluno_id: number | "";
   paciente_id: number | "";
   setor_id: number | "";
@@ -125,7 +126,7 @@ const formatDate = (dateString: string | undefined): string => {
   if (!dateString) return "N/A";
   try {
     const date = new Date(dateString);
-    return format(date, "yyyy-MM-dd", { locale: ptBR });
+    return format(date, "dd/MM/yyyy", { locale: ptBR }); // Changed to dd/MM/yyyy for display
   } catch (error) {
     console.error("Error formatting date:", error);
     return "Invalid Date";
@@ -144,7 +145,7 @@ const formatDateForInput = (dateString: string | undefined): string => {
   }
 };
 
-// Modal Styles (for observation and creation)
+// Modal Styles (for observation and creation/editing)
 const ModalOverlay = styled(motion.div)`
   position: fixed;
   inset: 0;
@@ -212,8 +213,9 @@ const PareceresPage = () => {
   const [pareceres, setPareceres] = useState<Parecer[]>([]);
   const [isObsModalOpen, setIsObsModalOpen] = useState(false);
   const [obsModalText, setObsModalText] = useState("");
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [newParecerData, setNewParecerData] = useState<NewParecerData>({
+  const [isFormModalOpen, setIsFormModalOpen] = useState(false); // Unified modal for create/edit
+  const [parecerFormData, setParecerFormData] = useState<ParecerFormData>({
+    // Renamed from newParecerData
     aluno_id: "",
     paciente_id: "",
     setor_id: "",
@@ -224,6 +226,7 @@ const PareceresPage = () => {
     leave_date: "",
     obs: "",
   });
+  const [editingParecer, setEditingParecer] = useState<Parecer | null>(null); // State to hold the parecer being edited
   const [alunos, setAlunos] = useState<Aluno[]>([]);
   const [pacientes, setPacientes] = useState<Paciente[]>([]);
   const [setores, setSetores] = useState<Setor[]>([]);
@@ -260,8 +263,8 @@ const PareceresPage = () => {
   }, []);
 
   const handleCreateParecer = () => {
-    setIsCreateModalOpen(true);
-    setNewParecerData({
+    setEditingParecer(null); // Ensure we are in creation mode
+    setParecerFormData({
       // Reset form
       aluno_id: "",
       paciente_id: "",
@@ -273,10 +276,31 @@ const PareceresPage = () => {
       leave_date: "",
       obs: "",
     });
+    setIsFormModalOpen(true);
   };
 
-  const handleEditParecer = (id: number) => {
-    navigate(`/pareceres/edit/${id}`);
+  const handleEditParecer = (parecer: Parecer) => {
+    console.log("PARECER: ", parecer);
+    setEditingParecer(parecer);
+    // Populate the form data with the existing parecer's details
+    setParecerFormData({
+      aluno_id: parecer.aluno_name
+        ? alunos.find((a) => a.name === parecer.aluno_name)?.id || ""
+        : "",
+      paciente_id: parecer.paciente_name
+        ? pacientes.find((p) => p.name === parecer.paciente_name)?.id || ""
+        : "",
+      setor_id: parecer.setor_name
+        ? setores.find((s) => s.name === parecer.setor_name)?.id || ""
+        : "",
+      num_port: parecer.num_port,
+      solicitation_date: formatDateForInput(parecer.solicitation_date),
+      answer_date: formatDateForInput(parecer.answer_date),
+      enter_date: formatDateForInput(parecer.enter_date),
+      leave_date: formatDateForInput(parecer.leave_date),
+      obs: parecer.obs || "",
+    });
+    setIsFormModalOpen(true);
   };
 
   const openObsModal = (text: string) => {
@@ -289,8 +313,10 @@ const PareceresPage = () => {
     setObsModalText("");
   };
 
-  const handleCreateModalClose = () => {
-    setIsCreateModalOpen(false);
+  const handleFormModalClose = () => {
+    // Renamed from handleCreateModalClose
+    setIsFormModalOpen(false);
+    setEditingParecer(null); // Clear editing state when modal closes
   };
 
   const handleInputChange = (
@@ -299,7 +325,7 @@ const PareceresPage = () => {
     >
   ) => {
     const { name, value } = e.target;
-    setNewParecerData((prevData) => ({
+    setParecerFormData((prevData) => ({
       ...prevData,
       [name]: value,
     }));
@@ -310,23 +336,28 @@ const PareceresPage = () => {
     setIsLoading(true);
     try {
       const payload = {
-        aluno_id: Number(newParecerData.aluno_id),
-        paciente_id: Number(newParecerData.paciente_id),
-        setor_id: Number(newParecerData.setor_id),
-        num_port: Number(newParecerData.num_port),
-        solicitation_date: newParecerData.solicitation_date,
-        answer_date: newParecerData.answer_date || null,
-        enter_date: newParecerData.enter_date || null,
-        leave_date: newParecerData.leave_date || null,
-        obs: newParecerData.obs || null,
+        aluno_id: Number(parecerFormData.aluno_id),
+        paciente_id: Number(parecerFormData.paciente_id),
+        setor_id: Number(parecerFormData.setor_id),
+        num_port: Number(parecerFormData.num_port),
+        solicitation_date: parecerFormData.solicitation_date,
+        answer_date: parecerFormData.answer_date || null,
+        enter_date: parecerFormData.enter_date || null,
+        leave_date: parecerFormData.leave_date || null,
+        obs: parecerFormData.obs || null,
       };
 
-      await api.post("/pareceres", payload);
-      await fetchPareceres(); // Reload data after successful creation
-      setIsCreateModalOpen(false); // Close the modal
+      if (editingParecer) {
+        await api.put(`/pareceres/${editingParecer.id}`, payload);
+      } else {
+        await api.post("/pareceres", payload);
+      }
+
+      await fetchPareceres(); // Reload data after successful creation/update
+      setIsFormModalOpen(false); // Close the modal
     } catch (error) {
-      console.error("Erro ao criar parecer:", error);
-      alert("Erro ao criar parecer. Verifique os dados e tente novamente.");
+      console.error("Erro ao salvar parecer:", error);
+      alert("Erro ao salvar parecer. Verifique os dados e tente novamente.");
     } finally {
       setIsLoading(false);
     }
@@ -379,7 +410,7 @@ const PareceresPage = () => {
                   {parecer.obs}
                 </TdObs>{" "}
                 <Td style={{ textAlign: "right" }}>
-                  <Button onClick={() => handleEditParecer(parecer.id)}>
+                  <Button onClick={() => handleEditParecer(parecer)}>
                     Editar
                   </Button>
                 </Td>
@@ -416,15 +447,15 @@ const PareceresPage = () => {
         )}
       </AnimatePresence>
 
-      {/* Create Parecer Modal */}
+      {/* Create/Edit Parecer Modal */}
       <AnimatePresence>
-        {isCreateModalOpen && (
+        {isFormModalOpen && (
           <ModalOverlay
             variants={modalVariants}
             initial="hidden"
             animate="visible"
             exit="exit"
-            onClick={handleCreateModalClose}
+            onClick={handleFormModalClose}
           >
             <ModalContent
               variants={modalVariants}
@@ -433,14 +464,16 @@ const PareceresPage = () => {
               exit="exit"
               onClick={(e) => e.stopPropagation()}
             >
-              <ModalTitle>Novo Parecer</ModalTitle>
+              <ModalTitle>
+                {editingParecer ? "Editar Parecer" : "Novo Parecer"}
+              </ModalTitle>
               <form onSubmit={handleFormSubmit}>
                 <FormGroup>
                   <label htmlFor="aluno_id">Aluno:</label>
                   <select
                     id="aluno_id"
                     name="aluno_id"
-                    value={newParecerData.aluno_id}
+                    value={parecerFormData.aluno_id}
                     onChange={handleInputChange}
                     required
                   >
@@ -457,7 +490,7 @@ const PareceresPage = () => {
                   <select
                     id="paciente_id"
                     name="paciente_id"
-                    value={newParecerData.paciente_id}
+                    value={parecerFormData.paciente_id}
                     onChange={handleInputChange}
                     required
                   >
@@ -474,7 +507,7 @@ const PareceresPage = () => {
                   <select
                     id="setor_id"
                     name="setor_id"
-                    value={newParecerData.setor_id}
+                    value={parecerFormData.setor_id}
                     onChange={handleInputChange}
                     required
                   >
@@ -492,7 +525,7 @@ const PareceresPage = () => {
                     type="number"
                     id="num_port"
                     name="num_port"
-                    value={newParecerData.num_port}
+                    value={parecerFormData.num_port}
                     onChange={handleInputChange}
                     required
                   />
@@ -505,7 +538,7 @@ const PareceresPage = () => {
                     type="date"
                     id="solicitation_date"
                     name="solicitation_date"
-                    value={formatDateForInput(newParecerData.solicitation_date)}
+                    value={parecerFormData.solicitation_date} // Use direct value, formatDateForInput called earlier
                     onChange={handleInputChange}
                     required
                   />
@@ -516,7 +549,7 @@ const PareceresPage = () => {
                     type="date"
                     id="answer_date"
                     name="answer_date"
-                    value={formatDateForInput(newParecerData.answer_date)}
+                    value={parecerFormData.answer_date}
                     onChange={handleInputChange}
                   />
                 </FormGroup>
@@ -526,7 +559,7 @@ const PareceresPage = () => {
                     type="date"
                     id="enter_date"
                     name="enter_date"
-                    value={formatDateForInput(newParecerData.enter_date)}
+                    value={parecerFormData.enter_date}
                     onChange={handleInputChange}
                   />
                 </FormGroup>
@@ -536,7 +569,7 @@ const PareceresPage = () => {
                     type="date"
                     id="leave_date"
                     name="leave_date"
-                    value={formatDateForInput(newParecerData.leave_date)}
+                    value={parecerFormData.leave_date}
                     onChange={handleInputChange}
                   />
                 </FormGroup>
@@ -545,20 +578,24 @@ const PareceresPage = () => {
                   <textarea
                     id="obs"
                     name="obs"
-                    value={newParecerData.obs}
+                    value={parecerFormData.obs}
                     onChange={handleInputChange}
                   ></textarea>
                 </FormGroup>
                 <ModalActions>
                   <Button
                     type="button"
-                    onClick={handleCreateModalClose}
+                    onClick={handleFormModalClose}
                     disabled={isLoading}
                   >
                     Cancelar
                   </Button>
                   <Button type="submit" disabled={isLoading}>
-                    {isLoading ? "Salvando..." : "Confirmar"}
+                    {isLoading
+                      ? "Salvando..."
+                      : editingParecer
+                      ? "Atualizar"
+                      : "Confirmar"}
                   </Button>
                 </ModalActions>
               </form>

@@ -16,7 +16,6 @@ interface Coordenacao {
   name: string;
 }
 
-// Interface for new aluno form data
 interface NewAlunoData {
   name: string;
   coordenacao_id: number | "";
@@ -86,7 +85,6 @@ const Td = styled.td`
   border-bottom: 1px solid #eee;
 `;
 
-// Modal Styles
 const ModalOverlay = styled(motion.div)`
   position: fixed;
   inset: 0;
@@ -151,6 +149,7 @@ export default function Alunos() {
     coordenacao_id: "",
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [editingAluno, setEditingAluno] = useState<Aluno | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -167,7 +166,6 @@ export default function Alunos() {
       try {
         const response = await api.get("/coordenacao");
         setCoordenacoes(response.data.data);
-        console.log(response.data.data);
       } catch (error) {
         console.error("Erro ao buscar coordenações:", error);
       }
@@ -178,8 +176,18 @@ export default function Alunos() {
   }, []);
 
   const handleCreateAluno = () => {
+    setEditingAluno(null);
+    setNewAlunoData({ name: "", coordenacao_id: "" });
     setIsModalOpen(true);
-    setNewAlunoData({ name: "", coordenacao_id: "" }); // Reset form
+  };
+
+  const handleEditAluno = (aluno: Aluno) => {
+    setEditingAluno(aluno);
+    setNewAlunoData({
+      name: aluno.name,
+      coordenacao_id: aluno.coordenacao_id,
+    });
+    setIsModalOpen(true);
   };
 
   const handleModalClose = () => {
@@ -201,29 +209,25 @@ export default function Alunos() {
     setIsLoading(true);
     try {
       const payload = {
-        ...newAlunoData,
+        name: newAlunoData.name,
         coordenacao_id: Number(newAlunoData.coordenacao_id),
       };
-      await api.post("/alunos", payload);
-      await (async () => {
-        try {
-          const response = await api.get("/alunos");
-          setAlunos(response.data.data);
-        } catch (error) {
-          console.error("Erro ao buscar alunos:", error);
-        }
-      })(); // Reload data after successful creation
-      setIsModalOpen(false); // Close the modal
+
+      if (editingAluno) {
+        await api.put(`/alunos/${editingAluno.id}`, payload);
+      } else {
+        await api.post("/alunos", payload);
+      }
+
+      const response = await api.get("/alunos");
+      setAlunos(response.data.data);
+      setIsModalOpen(false);
     } catch (error) {
-      console.error("Erro ao criar aluno:", error);
-      alert("Erro ao criar aluno. Verifique os dados e tente novamente.");
+      console.error("Erro ao salvar aluno:", error);
+      alert("Erro ao salvar aluno. Verifique os dados e tente novamente.");
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleEditAluno = (id: number) => {
-    navigate(`/alunos/edit/${id}`);
   };
 
   const modalVariants = {
@@ -259,9 +263,7 @@ export default function Alunos() {
                 <Td>{aluno.coordenacao_name}</Td>
                 <Td>{aluno.name}</Td>
                 <Td style={{ textAlign: "right" }}>
-                  <Button onClick={() => handleEditAluno(aluno.id)}>
-                    Editar
-                  </Button>
+                  <Button onClick={() => handleEditAluno(aluno)}>Editar</Button>
                 </Td>
               </tr>
             ))}
@@ -271,7 +273,7 @@ export default function Alunos() {
         <p>Nenhum aluno encontrado.</p>
       )}
 
-      {/* Create Aluno Modal */}
+      {/* Create/Edit Aluno Modal */}
       <AnimatePresence>
         {isModalOpen && (
           <ModalOverlay
@@ -279,16 +281,18 @@ export default function Alunos() {
             initial="hidden"
             animate="visible"
             exit="exit"
-            onClick={handleModalClose} // Close when clicking outside
+            onClick={handleModalClose}
           >
             <ModalContent
               variants={modalVariants}
               initial="hidden"
               animate="visible"
               exit="exit"
-              onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside modal
+              onClick={(e) => e.stopPropagation()}
             >
-              <ModalTitle>Novo Aluno</ModalTitle>
+              <ModalTitle>
+                {editingAluno ? "Editar Aluno" : "Novo Aluno"}
+              </ModalTitle>
               <form onSubmit={handleFormSubmit}>
                 <FormGroup>
                   <label htmlFor="name">Nome:</label>
@@ -327,7 +331,11 @@ export default function Alunos() {
                     Cancelar
                   </Button>
                   <Button type="submit" disabled={isLoading}>
-                    {isLoading ? "Salvando..." : "Confirmar"}
+                    {isLoading
+                      ? "Salvando..."
+                      : editingAluno
+                      ? "Atualizar"
+                      : "Confirmar"}
                   </Button>
                 </ModalActions>
               </form>
