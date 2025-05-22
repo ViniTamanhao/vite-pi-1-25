@@ -8,7 +8,7 @@ import Home from "./pages/Home/Home";
 import Pacientes from "./pages/Pacientes/Pacientes";
 import Alunos from "./pages/Alunos/Alunos";
 import Pareceres from "./pages/Pareceres/Pareceres";
-import Setores from "./pages/Setores/Setores";
+// import Setores from "./pages/Setores/Setores";
 import CreateParecerAlunoPage from "./pages/FormularioPareceres/FormularioPareces";
 
 const AppRoutes = () => {
@@ -21,7 +21,6 @@ const AppRoutes = () => {
           <Route path="/pacientes" element={<Pacientes />} />
           <Route path="/alunos" element={<Alunos />} />
           <Route path="/pareceres" element={<Pareceres />} />
-          <Route path="/setores" element={<Setores />} />
           <Route path="/*" element={<Home />} />
         </>
       ) : (

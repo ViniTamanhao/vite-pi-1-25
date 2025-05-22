@@ -85,7 +85,7 @@ export default function Home() {
           <NavButton to="/pacientes">Pacientes</NavButton>
           <NavButton to="/alunos">Alunos</NavButton>
           <NavButton to="/pareceres">Pareceres</NavButton>
-          <NavButton to="/setores">Setores</NavButton>
+          {/* <NavButton to="/setores">Setores</NavButton> */}
         </Box>
       </Center>
     </Container>
