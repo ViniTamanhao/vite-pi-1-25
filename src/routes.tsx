@@ -10,6 +10,7 @@ import Alunos from "./pages/Alunos/Alunos";
 import Pareceres from "./pages/Pareceres/Pareceres";
 // import Setores from "./pages/Setores/Setores";
 import CreateParecerAlunoPage from "./pages/FormularioPareceres/FormularioPareces";
+import Dados from "./pages/Dados/Dados";
 
 const AppRoutes = () => {
   const { token } = useContext(AuthContext);
@@ -21,6 +22,7 @@ const AppRoutes = () => {
           <Route path="/pacientes" element={<Pacientes />} />
           <Route path="/alunos" element={<Alunos />} />
           <Route path="/pareceres" element={<Pareceres />} />
+          <Route path="/dados" element={<Dados />} />
           <Route path="/*" element={<Home />} />
         </>
       ) : (
