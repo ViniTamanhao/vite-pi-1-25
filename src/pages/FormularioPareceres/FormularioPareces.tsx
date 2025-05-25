@@ -158,12 +158,15 @@ const CreateParecerAlunoPage = () => {
         setFormError("ID do aluno inválido. Por favor, digite um número.");
         return;
       }
+
+      console.log(id);
       const response = await api.get(`/alunos/${id}`);
       if (response.data && response.data.data) {
         setParecerData((prev) => ({ ...prev, aluno_id: id }));
         setCurrentAlunoName(response.data.data.name);
         setIsAuthenticated(true);
       } else {
+        console.log(response);
         setFormError("Aluno não encontrado. Verifique o ID e tente novamente.");
       }
     } catch (error) {

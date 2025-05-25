@@ -11,6 +11,7 @@ import Pareceres from "./pages/Pareceres/Pareceres";
 // import Setores from "./pages/Setores/Setores";
 import CreateParecerAlunoPage from "./pages/FormularioPareceres/FormularioPareces";
 import Dados from "./pages/Dados/Dados";
+import NovoPacientePublico from "./pages/FormularioPaciente/FormularioPaciente";
 
 const AppRoutes = () => {
   const { token } = useContext(AuthContext);
@@ -30,6 +31,7 @@ const AppRoutes = () => {
       )}
 
       <Route path="/formparecer" element={<CreateParecerAlunoPage />} />
+      <Route path="/formpaciente" element={<NovoPacientePublico />} />
     </Routes>
   );
 };
