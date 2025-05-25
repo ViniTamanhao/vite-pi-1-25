@@ -289,7 +289,7 @@ const CreateParecerAlunoPage = () => {
               </select>
             </FormGroup>
             <FormGroup>
-              <label htmlFor="num_port">Número Portuário:</label>
+              <label htmlFor="num_port">Número Prontuário:</label>
               <input
                 type="number"
                 id="num_port"

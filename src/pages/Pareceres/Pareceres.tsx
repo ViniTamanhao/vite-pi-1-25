@@ -386,7 +386,7 @@ const PareceresPage = () => {
               <Th>Aluno</Th>
               <Th>Paciente</Th>
               <Th>Setor</Th>
-              <Th>Número Portuário</Th>
+              <Th>Número Prontuário</Th>
               <Th>Data Solicitação</Th>
               <Th>Data Resposta</Th>
               <Th>Data Entrada</Th>
@@ -520,7 +520,7 @@ const PareceresPage = () => {
                   </select>
                 </FormGroup>
                 <FormGroup>
-                  <label htmlFor="num_port">Número Portuário:</label>
+                  <label htmlFor="num_port">Número Prontuário:</label>
                   <input
                     type="number"
                     id="num_port"
